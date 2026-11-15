@@ -95,5 +95,35 @@ int handle_builtin(char** arglist) {
         return 1;
     }
 
+    if (strcmp(arglist[0], "history") == 0) {
+        print_history();
+        return 1;
+    }
+
     return 0;
+}
+
+// ---------- Command history ----------
+static char* history[HISTORY_SIZE];
+static int hist_total = 0;   // total commands ever added
+
+void add_history_entry(const char* cmdline) {
+    int idx = hist_total % HISTORY_SIZE;
+    free(history[idx]);              // free the old entry (NULL is safe)
+    history[idx] = strdup(cmdline);
+    hist_total++;
+}
+
+// n is 1-based and refers to the numbering shown by 'history'
+const char* get_history_entry(int n) {
+    int first = (hist_total > HISTORY_SIZE) ? hist_total - HISTORY_SIZE + 1 : 1;
+    if (n < first || n > hist_total)
+        return NULL;
+    return history[(n - 1) % HISTORY_SIZE];
+}
+
+void print_history(void) {
+    int first = (hist_total > HISTORY_SIZE) ? hist_total - HISTORY_SIZE + 1 : 1;
+    for (int i = first; i <= hist_total; i++)
+        printf("%4d  %s\n", i, history[(i - 1) % HISTORY_SIZE]);
 }
