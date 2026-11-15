@@ -25,7 +25,11 @@ static int run_command(char* cmd) {
     if (arglist == NULL)
         return 0;
 
-    // FEATURE-8-HOOK
+    if (try_assignment(arglist)) {     // VAR=value is a built-in action
+        free_arglist(arglist);
+        return 0;
+    }
+    expand_variables(arglist);         // replace $NAME words
 
     int status = 0;
     if (handle_builtin(arglist) == 0)

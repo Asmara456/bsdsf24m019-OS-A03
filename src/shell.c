@@ -46,6 +46,7 @@ int handle_builtin(char** arglist) {
         printf("  cd <dir>    - change the current directory\n");
         printf("  help        - show this help message\n");
         printf("  jobs        - list background jobs\n");
+        printf("  set         - show all shell variables\n");
         return 1;
     }
 
@@ -56,6 +57,11 @@ int handle_builtin(char** arglist) {
 
     if (strcmp(arglist[0], "history") == 0) {
         print_history();
+        return 1;
+    }
+
+    if (strcmp(arglist[0], "set") == 0) {
+        print_vars();
         return 1;
     }
 

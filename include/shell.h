@@ -31,4 +31,9 @@ void print_jobs(void);
 int run_line(char* line);
 
 void handle_if(const char* condition);
+void set_var(const char* name, const char* value);
+const char* get_var(const char* name);
+void print_vars(void);
+int try_assignment(char** arglist);
+void expand_variables(char** arglist);
 #endif // SHELL_H
