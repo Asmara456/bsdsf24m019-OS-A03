@@ -1,7 +1,6 @@
 #include "shell.h"
 #include <fcntl.h>
 
-// Runs in the CHILD: handles < and >, then removes those tokens.
 static void setup_redirection(char** cmd) {
     for (int i = 0; cmd[i] != NULL; i++) {
         if (strcmp(cmd[i], "<") == 0 || strcmp(cmd[i], ">") == 0) {
@@ -26,7 +25,6 @@ static void setup_redirection(char** cmd) {
             dup2(fd, is_input ? STDIN_FILENO : STDOUT_FILENO);
             close(fd);
 
-            // Remove the operator and filename by shifting the rest left
             int j = i;
             while (cmd[j + 2] != NULL) {
                 cmd[j] = cmd[j + 2];
@@ -48,7 +46,12 @@ static void run_in_child(char** cmd) {
     exit(1);
 }
 
-int execute(char** arglist) {
+static int exit_code(int status) {
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+}
+
+// Returns the exit status of a foreground command (0 for background).
+int execute(char** arglist, int background, const char* cmdline) {
     int pipe_idx = -1;
     for (int i = 0; arglist[i] != NULL; i++) {
         if (strcmp(arglist[i], "|") == 0) {
@@ -57,24 +60,30 @@ int execute(char** arglist) {
         }
     }
 
-    // ---- No pipe: single command ----
+    // ---- No pipe ----
     if (pipe_idx == -1) {
-        int status;
         pid_t cpid = fork();
         if (cpid == -1) {
             perror("fork failed");
-            return -1;
+            return 1;
         }
         if (cpid == 0)
             run_in_child(arglist);
+
+        if (background) {                 // do NOT wait
+            add_job(cpid, cmdline);
+            printf("[background] PID %d\n", cpid);
+            return 0;
+        }
+        int status;
         waitpid(cpid, &status, 0);
-        return 0;
+        return exit_code(status);
     }
 
-    // ---- Pipe: left | right ----
+    // ---- Pipe ----
     if (pipe_idx == 0 || arglist[pipe_idx + 1] == NULL) {
         fprintf(stderr, "syntax error near '|'\n");
-        return -1;
+        return 1;
     }
 
     char* left[MAXARGS + 1];
@@ -86,11 +95,11 @@ int execute(char** arglist) {
     int fd[2];
     if (pipe(fd) == -1) {
         perror("pipe failed");
-        return -1;
+        return 1;
     }
 
     pid_t p1 = fork();
-    if (p1 == 0) {                 // left child: writer
+    if (p1 == 0) {
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
         close(fd[1]);
@@ -98,16 +107,23 @@ int execute(char** arglist) {
     }
 
     pid_t p2 = fork();
-    if (p2 == 0) {                 // right child: reader
+    if (p2 == 0) {
         dup2(fd[0], STDIN_FILENO);
         close(fd[0]);
         close(fd[1]);
         run_in_child(right);
     }
 
-    close(fd[0]);                  // parent must close both ends
+    close(fd[0]);
     close(fd[1]);
+
+    if (background) {
+        add_job(p2, cmdline);
+        printf("[background] PID %d\n", p2);
+        return 0;
+    }
+    int status;
     waitpid(p1, NULL, 0);
-    waitpid(p2, NULL, 0);
-    return 0;
+    waitpid(p2, &status, 0);
+    return exit_code(status);
 }
