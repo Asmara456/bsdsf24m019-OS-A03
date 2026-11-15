@@ -30,7 +30,12 @@ int main() {
             add_history(cmdline);
         }
 
-        run_line(cmdline);
+        char* t = cmdline;
+        while (*t == ' ' || *t == '\t') t++;
+        if (strncmp(t, "if", 2) == 0 && (t[2] == ' ' || t[2] == '\t' || t[2] == '\0'))
+            handle_if(t + 2);
+        else
+            run_line(cmdline);
         free(cmdline);
     }
 

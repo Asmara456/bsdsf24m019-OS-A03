@@ -30,4 +30,5 @@ void reap_jobs(void);
 void print_jobs(void);
 int run_line(char* line);
 
+void handle_if(const char* condition);
 #endif // SHELL_H
